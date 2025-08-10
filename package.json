@@ -1,0 +1,58 @@
+{
+  "name": "nssplayer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "copy:index": "mkdir public\\electron-ui 2>nul & copy src\\electron-ui\\index.html public\\electron-ui\\index.html",
+    "dev:react": "npm run copy:index && webpack --config webpack.electron.config.js --watch",
+    "dev:electron": "wait-on public/electron-ui/bundle.js && nodemon --watch main.js --exec \"electron .\"",
+    "start:dev": "npm-run-all --parallel dev:react dev:electron",
+    "build:electron-ui": "npm run copy:index && webpack --config webpack.electron.config.js --mode production",
+    "build:web-ui": "webpack --config webpack.web.config.js --mode production",
+    "build": "npm run clean && npm run build:electron-ui && npm run build:web-ui && electron-builder",
+    "clean": "rimraf public/electron-ui dist",
+    "dist": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "com.yourname.nssplayer",
+    "productName": "NSSplayer",
+    "files": [
+      "main.js",
+      "preload.js",
+      "public/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.8.2",
+    "express": "^5.1.0",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-redux": "^9.2.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.0",
+    "@babel/preset-env": "^7.28.0",
+    "@babel/preset-react": "^7.27.1",
+    "babel-loader": "^10.0.0",
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12",
+    "nodemon": "^3.1.10",
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^6.0.1",
+    "wait-on": "^8.0.4",
+    "webpack": "^5.101.0",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.2"
+  }
+}

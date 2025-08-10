@@ -1,0 +1,26 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# VSCode
+.vscode/
+
+# Electron build output
+dist/
+out/
+*.exe
+
+# Webpack/Electron build artifacts
+public/electron-ui/*
+public/web-ui/*
+
+# Но оставляем шаблоны index.html, если нужно:
+!public/electron-ui/.gitkeep
+!public/web-ui/.gitkeep
+
+# Mac/Windows system files
+.DS_Store
+Thumbs.db
