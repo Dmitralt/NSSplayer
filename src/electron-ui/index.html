@@ -4,6 +4,38 @@
 <head>
     <meta charset="UTF-8" />
     <title>Video Player</title>
+
+    <style>
+        html,
+        body,
+        #root {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: #000;
+            font-family: sans-serif;
+            color: white;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        button {
+            font: inherit;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
+    </style>
 </head>
 
 <body>

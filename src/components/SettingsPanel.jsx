@@ -16,10 +16,10 @@ export default function SettingsPanel() {
                 background: "#f9f9f9",
             }}
         >
-            <h3>Настройки</h3>
+            <h3>Settings</h3>
 
             <label>
-                Цвет фона:{" "}
+                Background color:{" "}
                 <input
                     type="color"
                     value={backgroundColor}
