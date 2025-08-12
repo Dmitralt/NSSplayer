@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import SettingsPanel from "./components/SettingsPanel";
 import { useSelector, useDispatch } from "react-redux";
 import { QRCodeSVG } from "qrcode.react";
 import { setVideoPath } from "./store/settingsSlice";
@@ -16,24 +15,78 @@ export default function App() {
     const [playbackRate, setPlaybackRate] = useState(1);
     const [volume, setVolume] = useState(100);
 
-    const hideTimerRef = useRef(null);
     const videoRef = useRef(null);
     const audioContextRef = useRef(null);
     const gainNodeRef = useRef(null);
 
     useEffect(() => {
+        let hideButtonTimer = null;
+        let hidePanelTimer = null;
+
+        const handleMouseMove = (e) => {
+            const panel = document.getElementById("settings-panel");
+
+            setShowSettingsButton(true);
+            if (hideButtonTimer) clearTimeout(hideButtonTimer);
+
+            if (!isPanelOpen) {
+                hideButtonTimer = setTimeout(() => {
+                    setShowSettingsButton(false);
+                }, 2000);
+            }
+
+            if (isPanelOpen && panel) {
+                const rect = panel.getBoundingClientRect();
+                const inside =
+                    e.clientX >= rect.left &&
+                    e.clientX <= rect.right &&
+                    e.clientY >= rect.top &&
+                    e.clientY <= rect.bottom;
+
+                if (inside) {
+                    if (hidePanelTimer) {
+                        clearTimeout(hidePanelTimer);
+                        hidePanelTimer = null;
+                    }
+                } else {
+                    if (!hidePanelTimer) {
+                        hidePanelTimer = setTimeout(() => {
+                            setIsPanelOpen(false);
+
+                            setTimeout(() => {
+                                setShowSettingsButton(false);
+                            }, 1000);
+                        }, 3000);
+                    }
+                }
+            }
+        };
+
+        window.addEventListener("mousemove", handleMouseMove);
+
+        return () => {
+            window.removeEventListener("mousemove", handleMouseMove);
+            if (hideButtonTimer) clearTimeout(hideButtonTimer);
+            if (hidePanelTimer) clearTimeout(hidePanelTimer);
+        };
+    }, [isPanelOpen]);
+
+    useEffect(() => {
         const handleLeavePiP = () => {
             window.electronAPI.restoreMainWindow();
         };
+
         const handleExitPiPFromMain = async () => {
             if (document.pictureInPictureElement) {
                 await document.exitPictureInPicture();
             }
         };
+
         if (videoRef.current) {
             videoRef.current.addEventListener("leavepictureinpicture", handleLeavePiP);
         }
         window.electronAPI.onExitPiP(handleExitPiPFromMain);
+
         return () => {
             if (videoRef.current) {
                 videoRef.current.removeEventListener("leavepictureinpicture", handleLeavePiP);
@@ -41,37 +94,25 @@ export default function App() {
             window.electronAPI.removeExitPiP(handleExitPiPFromMain);
         };
     }, []);
-    useEffect(() => {
-        const video = videoRef.current;
-        if (!video) return;
 
-        video.addEventListener("leavepictureinpicture", () => {
-            window.electronAPI.restoreMainWindow();
-        });
+    useEffect(() => {
+        if (!videoPath || !videoRef.current) return;
+
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContextRef.current.createMediaElementSource(videoRef.current);
+        gainNodeRef.current = audioContextRef.current.createGain();
+        source.connect(gainNodeRef.current);
+        gainNodeRef.current.connect(audioContextRef.current.destination);
+        gainNodeRef.current.gain.value = volume / 100;
 
         return () => {
-            video.removeEventListener("leavepictureinpicture", () => {
-                window.electronAPI.restoreMainWindow();
-            });
-        };
-    }, []);
-
-    useEffect(() => {
-        const handleMouseMove = () => {
-            if (!isPanelOpen) {
-                setShowSettingsButton(true);
-                if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-                hideTimerRef.current = setTimeout(() => {
-                    setShowSettingsButton(false);
-                }, 3000);
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+                audioContextRef.current = null;
+                gainNodeRef.current = null;
             }
         };
-        window.addEventListener("mousemove", handleMouseMove);
-        return () => {
-            window.removeEventListener("mousemove", handleMouseMove);
-            if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-        };
-    }, [isPanelOpen]);
+    }, [videoPath]);
 
     const openFile = async () => {
         const file = await window.electronAPI.selectVideo();
@@ -117,25 +158,6 @@ export default function App() {
             gainNodeRef.current.gain.value = newVolume / 100;
         }
     };
-
-    useEffect(() => {
-        if (!videoPath || !videoRef.current) return;
-
-        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioContextRef.current.createMediaElementSource(videoRef.current);
-        gainNodeRef.current = audioContextRef.current.createGain();
-        source.connect(gainNodeRef.current);
-        gainNodeRef.current.connect(audioContextRef.current.destination);
-        gainNodeRef.current.gain.value = volume / 100;
-
-        return () => {
-            if (audioContextRef.current) {
-                audioContextRef.current.close();
-                audioContextRef.current = null;
-                gainNodeRef.current = null;
-            }
-        };
-    }, [videoPath]);
 
     const handlePiP = async () => {
         try {
@@ -223,6 +245,7 @@ export default function App() {
             )}
 
             <div
+                id="settings-panel"
                 style={{
                     position: "absolute",
                     top: 0,
@@ -244,6 +267,7 @@ export default function App() {
                 }}
             >
                 <h2>Settings</h2>
+
                 <div>
                     <label>Volume: {volume}%</label>
                     <input
@@ -259,7 +283,7 @@ export default function App() {
 
                 <button onClick={openFile}>Open video</button>
                 <button onClick={toggleSharing}>
-                    {isSharing ? "Stop Sharing" : "start sharing"}
+                    {isSharing ? "Stop Sharing" : "Start Sharing"}
                 </button>
                 {shareURL && (
                     <div>
@@ -285,9 +309,6 @@ export default function App() {
                 </div>
 
                 <button onClick={handlePiP}>Picture in Picture</button>
-
-
-                {/* <SettingsPanel /> */}
             </div>
         </div>
     );

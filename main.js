@@ -3,6 +3,9 @@ const path = require("path");
 const express = require("express");
 const os = require("os");
 const fs = require("fs");
+const { globalShortcut } = require("electron");
+
+
 
 let mainWindow;
 let currentVideoPath = null;
@@ -100,7 +103,13 @@ function createWindow() {
     Menu.setApplicationMenu(menu);
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(createWindow).then(() => {
+    globalShortcut.register("Escape", () => {
+        if (mainWindow && mainWindow.isFullScreen()) {
+            mainWindow.setFullScreen(false);
+        }
+    });
+});
 
 ipcMain.on("minimize-main-window", () => {
     if (mainWindow && !mainWindow.isMinimized()) {
@@ -250,4 +259,10 @@ ipcMain.handle("stop-sharing", async () => {
         console.log("The server was not started");
         return { success: false, message: "The server is not running" };
     }
+});
+
+
+
+app.on("will-quit", () => {
+    globalShortcut.unregisterAll();
 });

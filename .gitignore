@@ -17,7 +17,6 @@ out/
 public/electron-ui/*
 public/web-ui/*
 
-# Но оставляем шаблоны index.html, если нужно:
 !public/electron-ui/.gitkeep
 !public/web-ui/.gitkeep
 
