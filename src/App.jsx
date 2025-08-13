@@ -18,6 +18,7 @@ export default function App() {
     const [volume, setVolume] = useState(100);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
+    const [ignoreHoverUntilLeave, setIgnoreHoverUntilLeave] = useState(false);
 
     // NEW: flip state
     const [isFlipped, setIsFlipped] = useState(false);
@@ -49,6 +50,7 @@ export default function App() {
     }, [videoPath]); // Зависит от videoPath, чтобы сработать при смене видео
 
     // Автоскрытие панели
+
     useEffect(() => {
         let hideButtonTimer = null;
         let hidePanelTimer = null;
@@ -60,7 +62,6 @@ export default function App() {
             setShowSettingsButton(true);
             if (hideButtonTimer) clearTimeout(hideButtonTimer);
 
-            // Если навели на кнопку — открываем панель
             if (settingsBtn) {
                 const btnRect = settingsBtn.getBoundingClientRect();
                 const overBtn =
@@ -70,7 +71,10 @@ export default function App() {
                     e.clientY <= btnRect.bottom;
 
                 if (overBtn) {
-                    setIsPanelOpen(true);
+                    // Если после клика на кнопку игнорируем наведение
+                    if (!ignoreHoverUntilLeave) {
+                        setIsPanelOpen(true);
+                    }
                     return;
                 }
             }
@@ -107,8 +111,7 @@ export default function App() {
             if (hideButtonTimer) clearTimeout(hideButtonTimer);
             if (hidePanelTimer) clearTimeout(hidePanelTimer);
         };
-    }, [isPanelOpen]);
-
+    }, [isPanelOpen, ignoreHoverUntilLeave]);
 
     // PiP события
     useEffect(() => {
@@ -274,7 +277,20 @@ export default function App() {
             {showSettingsButton && (
                 <button
                     id="settings-btn"
-                    onClick={() => setIsPanelOpen(!isPanelOpen)}
+                    onClick={() => {
+                        if (isPanelOpen) {
+                            setIsPanelOpen(false);
+                            setIgnoreHoverUntilLeave(true); // включаем блокировку автопоказа
+                        } else {
+                            setIsPanelOpen(true);
+                        }
+                    }}
+                    onMouseLeave={() => {
+                        // Когда мышь покинула кнопку — снова разрешаем автопоказ
+                        if (ignoreHoverUntilLeave) {
+                            setIgnoreHoverUntilLeave(false);
+                        }
+                    }}
                     style={{
                         position: "absolute",
                         top: 20,

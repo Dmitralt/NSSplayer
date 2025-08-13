@@ -100,7 +100,7 @@ export default function VideoPlayer({
                     objectFit: "contain",
                     transform: isFlipped ? "scaleX(-1)" : "none",
                     transformOrigin: "center",
-                    backgroundColor: "#fff" // фон вокруг видео тоже светлый
+                    backgroundColor: "#000" // при воспроизведении чёрный фон вокруг видео
                 }}
                 onPlay={() => onPlay?.()}
             />
@@ -113,13 +113,14 @@ export default function VideoPlayer({
                     left: 0,
                     width: "100%",
                     padding: "10px",
-                    background: "rgba(255, 255, 255, 1.0)", // светлый прозрачный фон
+                    background: "rgba(0,0,0,0.0)", // полупрозрачный тёмный фон
                     display: showControls ? "flex" : "none",
                     flexDirection: "column",
                     gap: "6px",
                     boxSizing: "border-box",
                     zIndex: 1000,
-                    backdropFilter: "blur(6px)" // лёгкий блюр для красоты
+                    //backdropFilter: "blur(6px)", // лёгкий блюр для читаемости
+                    transition: "opacity 0.3s ease"
                 }}
             >
                 {/* Прогресс */}
@@ -132,23 +133,25 @@ export default function VideoPlayer({
                     onChange={onProgressChange}
                     style={{
                         width: "100%",
-                        accentColor: "#007bff",
+                        accentColor: "#fff",
                         cursor: "pointer"
                     }}
                 />
 
                 {/* Кнопки */}
-                <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    color: "#000"
-                }}>
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        color: "#fff"
+                    }}
+                >
                     <button
                         onClick={togglePlay}
                         style={{
                             background: "transparent",
-                            color: "#000",
+                            color: "#fff",
                             fontSize: "18px",
                             border: "none",
                             cursor: "pointer"
@@ -156,28 +159,30 @@ export default function VideoPlayer({
                     >
                         {isPlaying ? "⏸" : "▶"}
                     </button>
+
                     <span style={{ fontFamily: "monospace" }}>
                         {formatTime(currentTime)} / {formatTime(duration)}
                     </span>
+
                     <input
                         type="range"
                         min="0"
-                        max="100"          // изменить с 1 на 100
-                        step="1"           // шаг 1 (целые числа)
+                        max="100"
+                        step="1"
                         value={volume}
                         onChange={onVolumeChange}
                         style={{
                             width: "100px",
-                            accentColor: "#007bff",
+                            accentColor: "#fff",
                             cursor: "pointer"
                         }}
                     />
 
                     <button
-                        onClick={toggleFullscreen}
+                        onClick={() => window.electronAPI.toggleFullScreen()}
                         style={{
                             background: "transparent",
-                            color: "#000",
+                            color: "#fff",
                             fontSize: "18px",
                             border: "none",
                             cursor: "pointer"
@@ -189,5 +194,6 @@ export default function VideoPlayer({
             </div>
         </div>
     );
+
 
 }
