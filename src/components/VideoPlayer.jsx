@@ -1,17 +1,193 @@
-import React from "react";
-import { useSelector } from "react-redux";
+import React, { useRef, useState, useEffect } from "react";
 
-export default function VideoPlayer() {
-    const backgroundColor = useSelector(state => state.settings.backgroundColor);
+export default function VideoPlayer({
+    videoPath,
+    videoRef,
+    onPlay,
+    onOpenFile,
+    isFlipped,
+    currentTime,
+    duration,
+    progress,
+    onProgressChange,
+    volume,
+    onVolumeChange,
+    isPlaying,
+    togglePlay
+}) {
+    const containerRef = useRef(null);
+    const [showControls, setShowControls] = useState(true);
+    const hideTimerRef = useRef(null);
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            containerRef.current.requestFullscreen();
+        } else {
+            document.exitFullscreen();
+        }
+    };
+
+    const formatTime = (time) => {
+        if (!isFinite(time)) return "00:00";
+        const minutes = Math.floor(time / 60);
+        const seconds = Math.floor(time % 60);
+        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    };
+
+    // Автоскрытие панели при бездействии
+    useEffect(() => {
+        const resetHideTimer = () => {
+            setShowControls(true);
+            if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+            hideTimerRef.current = setTimeout(() => setShowControls(false), 3000);
+        };
+
+        window.addEventListener("mousemove", resetHideTimer);
+        window.addEventListener("keydown", resetHideTimer);
+
+        resetHideTimer(); // показать при монтировании
+
+        return () => {
+            window.removeEventListener("mousemove", resetHideTimer);
+            window.removeEventListener("keydown", resetHideTimer);
+            if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        };
+    }, []);
+
+    if (!videoPath) {
+        return (
+            <div
+                style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    color: "#000",
+                    flexDirection: "column",
+                    gap: "1rem",
+                    backgroundColor: "#ffffffff"
+                }}
+            >
+                <span>Select video...</span>
+                <button onClick={onOpenFile}>Open video</button>
+            </div>
+        );
+    }
 
     return (
-        <div style={{ backgroundColor, height: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <div
+            ref={containerRef}
+            style={{
+                position: "relative",
+                width: "100%",
+                height: "100%",
+                backgroundColor: "#fff", // светлый фон при старте
+                overflow: "hidden"
+            }}
+        >
+            {/* Видео */}
             <video
-                src="http://localhost:3000/stream"
-                controls
+                ref={videoRef}
+                src={`file://${videoPath}`}
                 autoPlay
-                style={{ maxWidth: "100%", maxHeight: "100%" }}
+                style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    transform: isFlipped ? "scaleX(-1)" : "none",
+                    transformOrigin: "center",
+                    backgroundColor: "#fff" // фон вокруг видео тоже светлый
+                }}
+                onPlay={() => onPlay?.()}
             />
+
+            {/* Панель управления */}
+            <div
+                style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    width: "100%",
+                    padding: "10px",
+                    background: "rgba(255, 255, 255, 1.0)", // светлый прозрачный фон
+                    display: showControls ? "flex" : "none",
+                    flexDirection: "column",
+                    gap: "6px",
+                    boxSizing: "border-box",
+                    zIndex: 1000,
+                    backdropFilter: "blur(6px)" // лёгкий блюр для красоты
+                }}
+            >
+                {/* Прогресс */}
+                <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={progress}
+                    onChange={onProgressChange}
+                    style={{
+                        width: "100%",
+                        accentColor: "#007bff",
+                        cursor: "pointer"
+                    }}
+                />
+
+                {/* Кнопки */}
+                <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    color: "#000"
+                }}>
+                    <button
+                        onClick={togglePlay}
+                        style={{
+                            background: "transparent",
+                            color: "#000",
+                            fontSize: "18px",
+                            border: "none",
+                            cursor: "pointer"
+                        }}
+                    >
+                        {isPlaying ? "⏸" : "▶"}
+                    </button>
+                    <span style={{ fontFamily: "monospace" }}>
+                        {formatTime(currentTime)} / {formatTime(duration)}
+                    </span>
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"          // изменить с 1 на 100
+                        step="1"           // шаг 1 (целые числа)
+                        value={volume}
+                        onChange={onVolumeChange}
+                        style={{
+                            width: "100px",
+                            accentColor: "#007bff",
+                            cursor: "pointer"
+                        }}
+                    />
+
+                    <button
+                        onClick={toggleFullscreen}
+                        style={{
+                            background: "transparent",
+                            color: "#000",
+                            fontSize: "18px",
+                            border: "none",
+                            cursor: "pointer"
+                        }}
+                    >
+                        ⛶
+                    </button>
+                </div>
+            </div>
         </div>
     );
+
 }

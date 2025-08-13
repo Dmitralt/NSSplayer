@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { QRCodeSVG } from "qrcode.react";
 import { setVideoPath } from "./store/settingsSlice";
+import VideoPlayer from "./components/VideoPlayer";
+import SettingsPanel from "./components/SettingsPanel";
 
 export default function App() {
     const dispatch = useDispatch();
@@ -14,25 +16,67 @@ export default function App() {
     const [showSettingsButton, setShowSettingsButton] = useState(true);
     const [playbackRate, setPlaybackRate] = useState(1);
     const [volume, setVolume] = useState(100);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
+
+    // NEW: flip state
+    const [isFlipped, setIsFlipped] = useState(false);
 
     const videoRef = useRef(null);
     const audioContextRef = useRef(null);
     const gainNodeRef = useRef(null);
 
     useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        const handleTimeUpdate = () => {
+            setCurrentTime(video.currentTime);
+        };
+
+        const handleLoadedMetadata = () => {
+            setDuration(video.duration || 0);
+            setCurrentTime(0); // Сбрасываем время при загрузке нового видео
+        };
+
+        video.addEventListener("timeupdate", handleTimeUpdate);
+        video.addEventListener("loadedmetadata", handleLoadedMetadata);
+
+        return () => {
+            video.removeEventListener("timeupdate", handleTimeUpdate);
+            video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        };
+    }, [videoPath]); // Зависит от videoPath, чтобы сработать при смене видео
+
+    // Автоскрытие панели
+    useEffect(() => {
         let hideButtonTimer = null;
         let hidePanelTimer = null;
 
         const handleMouseMove = (e) => {
             const panel = document.getElementById("settings-panel");
+            const settingsBtn = document.getElementById("settings-btn");
 
             setShowSettingsButton(true);
             if (hideButtonTimer) clearTimeout(hideButtonTimer);
 
+            // Если навели на кнопку — открываем панель
+            if (settingsBtn) {
+                const btnRect = settingsBtn.getBoundingClientRect();
+                const overBtn =
+                    e.clientX >= btnRect.left &&
+                    e.clientX <= btnRect.right &&
+                    e.clientY >= btnRect.top &&
+                    e.clientY <= btnRect.bottom;
+
+                if (overBtn) {
+                    setIsPanelOpen(true);
+                    return;
+                }
+            }
+
             if (!isPanelOpen) {
-                hideButtonTimer = setTimeout(() => {
-                    setShowSettingsButton(false);
-                }, 2000);
+                hideButtonTimer = setTimeout(() => setShowSettingsButton(false), 2000);
             }
 
             if (isPanelOpen && panel) {
@@ -48,22 +92,16 @@ export default function App() {
                         clearTimeout(hidePanelTimer);
                         hidePanelTimer = null;
                     }
-                } else {
-                    if (!hidePanelTimer) {
-                        hidePanelTimer = setTimeout(() => {
-                            setIsPanelOpen(false);
-
-                            setTimeout(() => {
-                                setShowSettingsButton(false);
-                            }, 1000);
-                        }, 3000);
-                    }
+                } else if (!hidePanelTimer) {
+                    hidePanelTimer = setTimeout(() => {
+                        setIsPanelOpen(false);
+                        setTimeout(() => setShowSettingsButton(false), 1000);
+                    }, 3000);
                 }
             }
         };
 
         window.addEventListener("mousemove", handleMouseMove);
-
         return () => {
             window.removeEventListener("mousemove", handleMouseMove);
             if (hideButtonTimer) clearTimeout(hideButtonTimer);
@@ -71,11 +109,10 @@ export default function App() {
         };
     }, [isPanelOpen]);
 
-    useEffect(() => {
-        const handleLeavePiP = () => {
-            window.electronAPI.restoreMainWindow();
-        };
 
+    // PiP события
+    useEffect(() => {
+        const handleLeavePiP = () => window.electronAPI.restoreMainWindow();
         const handleExitPiPFromMain = async () => {
             if (document.pictureInPictureElement) {
                 await document.exitPictureInPicture();
@@ -95,15 +132,25 @@ export default function App() {
         };
     }, []);
 
+    // Создание AudioContext при смене видео
     useEffect(() => {
         if (!videoPath || !videoRef.current) return;
 
+        // Закрываем старый
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+        }
+
         audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioContextRef.current.createMediaElementSource(videoRef.current);
         gainNodeRef.current = audioContextRef.current.createGain();
+
+        const source = audioContextRef.current.createMediaElementSource(videoRef.current);
         source.connect(gainNodeRef.current);
         gainNodeRef.current.connect(audioContextRef.current.destination);
         gainNodeRef.current.gain.value = volume / 100;
+
+        // Восстанавливаем скорость после смены видео
+        videoRef.current.playbackRate = playbackRate;
 
         return () => {
             if (audioContextRef.current) {
@@ -115,6 +162,14 @@ export default function App() {
     }, [videoPath]);
 
     const openFile = async () => {
+        if (audioContextRef.current) {
+            try {
+                await audioContextRef.current.close();
+            } catch { /* ignore */ }
+            audioContextRef.current = null;
+            gainNodeRef.current = null;
+        }
+
         const file = await window.electronAPI.selectVideo();
         if (file) {
             dispatch(setVideoPath(file));
@@ -122,23 +177,24 @@ export default function App() {
             setIsSharing(false);
         }
     };
-
+    const handleProgressChange = (e) => {
+        const newTime = (parseFloat(e.target.value) / 100) * duration;
+        if (videoRef.current) {
+            videoRef.current.currentTime = newTime;
+        }
+    };
     const toggleSharing = async () => {
         if (!isSharing) {
             const result = await window.electronAPI.startSharing();
             if (result.success) {
                 setShareURL(result.url);
                 setIsSharing(true);
-            } else {
-                alert(result.message);
             }
         } else {
             const result = await window.electronAPI.stopSharing();
             if (result.success) {
                 setShareURL(null);
                 setIsSharing(false);
-            } else {
-                alert(result.message);
             }
         }
     };
@@ -174,6 +230,11 @@ export default function App() {
         }
     };
 
+    // NEW: flip handler
+    const handleFlipChange = (e) => {
+        setIsFlipped(e.target.checked);
+    };
+
     return (
         <div
             style={{
@@ -184,48 +245,35 @@ export default function App() {
                 overflow: "hidden"
             }}
         >
-            {videoPath ? (
-                <video
-                    ref={videoRef}
-                    src={`file://${videoPath}`}
-                    controls
-                    style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "contain",
-                        backgroundColor: "#000",
-                        zIndex: 0
-                    }}
-                    onPlay={() => {
-                        if (audioContextRef.current?.state === "suspended") {
-                            audioContextRef.current.resume();
-                        }
-                    }}
-                />
-            ) : (
-                <div
-                    style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: "100%",
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        color: "#aaa"
-                    }}
-                >
-                    Select video...
-                    <button onClick={openFile}>Open video</button>
-                </div>
-            )}
+            <VideoPlayer
+                key={videoPath} // ← пересоздаёт элемент при смене файла
+                videoPath={videoPath}
+                videoRef={videoRef}
+                onPlay={() => {
+                    if (audioContextRef.current?.state === "suspended") {
+                        audioContextRef.current.resume();
+                    }
+                }}
+                onOpenFile={openFile}
+                isFlipped={isFlipped}
+                currentTime={currentTime}
+                duration={duration}
+                progress={(currentTime / duration) * 100 || 0}
+                onProgressChange={handleProgressChange}
+                onVolumeChange={handleVolumeChange}
+                volume={volume}
+                isPlaying={!videoRef.current?.paused}
+                togglePlay={() =>
+                    videoRef.current?.paused
+                        ? videoRef.current.play()
+                        : videoRef.current.pause()
+                }
+            />
+
 
             {showSettingsButton && (
                 <button
+                    id="settings-btn"
                     onClick={() => setIsPanelOpen(!isPanelOpen)}
                     style={{
                         position: "absolute",
@@ -244,72 +292,20 @@ export default function App() {
                 </button>
             )}
 
-            <div
-                id="settings-panel"
-                style={{
-                    position: "absolute",
-                    top: 0,
-                    right: 0,
-                    height: "100%",
-                    width: 300,
-                    backgroundColor: "rgba(34,34,34,0.95)",
-                    color: "#fff",
-                    boxShadow: "-4px 0 10px rgba(0,0,0,0.3)",
-                    padding: 20,
-                    transform: isPanelOpen ? "translateX(0)" : "translateX(100%)",
-                    transition: "transform 0.3s ease",
-                    zIndex: 1000,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "1rem",
-                    overflowY: "auto",
-                    boxSizing: "border-box"
-                }}
-            >
-                <h2>Settings</h2>
-
-                <div>
-                    <label>Volume: {volume}%</label>
-                    <input
-                        type="range"
-                        min="0"
-                        max="500"
-                        step="1"
-                        value={volume}
-                        onChange={handleVolumeChange}
-                        style={{ width: "100%" }}
-                    />
-                </div>
-
-                <button onClick={openFile}>Open video</button>
-                <button onClick={toggleSharing}>
-                    {isSharing ? "Stop Sharing" : "Start Sharing"}
-                </button>
-                {shareURL && (
-                    <div>
-                        <p>Link:</p>
-                        <a href={shareURL} target="_blank" rel="noreferrer" style={{ color: "#4af" }}>
-                            {shareURL}
-                        </a>
-                        <QRCodeSVG value={shareURL} />
-                    </div>
-                )}
-
-                <div>
-                    <label>Speed: {playbackRate}x</label>
-                    <input
-                        type="range"
-                        min="0.25"
-                        max="8"
-                        step="0.25"
-                        value={playbackRate}
-                        onChange={handleSpeedChange}
-                        style={{ width: "100%" }}
-                    />
-                </div>
-
-                <button onClick={handlePiP}>Picture in Picture</button>
-            </div>
+            <SettingsPanel
+                isPanelOpen={isPanelOpen}
+                volume={volume}
+                playbackRate={playbackRate}
+                isSharing={isSharing}
+                shareURL={shareURL}
+                onVolumeChange={handleVolumeChange}
+                onSpeedChange={handleSpeedChange}
+                onOpenFile={openFile}
+                onToggleSharing={toggleSharing}
+                onPiP={handlePiP}
+                isFlipped={isFlipped}           // <-- pass flip state
+                onFlipChange={handleFlipChange} // <-- pass handler
+            />
         </div>
     );
 }

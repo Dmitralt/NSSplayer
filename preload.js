@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     minimizeMainWindow: () => ipcRenderer.send("minimize-main-window"),
     restoreMainWindow: () => ipcRenderer.send("restore-main-window"),
     onExitPiP: (callback) => ipcRenderer.on("exit-pip", callback),
-    removeExitPiP: (callback) => ipcRenderer.removeListener("exit-pip", callback)
+    removeExitPiP: (callback) => ipcRenderer.removeListener("exit-pip", callback),
+    toggleFullScreen: () => ipcRenderer.invoke("toggle-fullscreen"),
 });

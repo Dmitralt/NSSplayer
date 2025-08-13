@@ -126,7 +126,12 @@ ipcMain.on("restore-main-window", () => {
         mainWindow.focus();
     }
 });
-
+ipcMain.handle("toggle-fullscreen", () => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (win) {
+        win.setFullScreen(!win.isFullScreen());
+    }
+});
 // =====================================
 
 ipcMain.handle("select-video", async () => {
@@ -161,7 +166,7 @@ ipcMain.handle("start-sharing", async () => {
         if (!range) {
             return res.send(`
                 <html>
-                <body style="margin:0;display:flex;justify-content:center;align-items:center;height:100vh;background:black;">
+                <body style="margin:0;display:flex;justify-content:center;align-items:center;height:100vh;background:white;">
                     <video src="/stream" controls autoplay style="width:100%;height:auto;"></video>
                 </body>
                 </html>
