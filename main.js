@@ -146,7 +146,7 @@ ipcMain.handle("select-video", async () => {
 });
 
 ipcMain.handle("start-sharing", async () => {
-    console.log("Запрос на старт шаринга");
+    console.log("Request to start sharing");
 
     if (!currentVideoPath) {
         console.log("Video not choosing");
@@ -154,7 +154,7 @@ ipcMain.handle("start-sharing", async () => {
     }
 
     if (server) {
-        console.log("Сервер уже работает");
+        console.log("server work");
         return { success: true, url: `http://${getLocalIP()}:3000/video` };
     }
 
@@ -223,7 +223,7 @@ ipcMain.handle("start-sharing", async () => {
     try {
         server = appExpress.listen(3000, () => {
             const url = `http://${getLocalIP()}:3000/video`;
-            console.log(`Видео доступно по адресу: ${url}`);
+            console.log(`The video is available at: ${url}`);
         });
 
         server.on('connection', (conn) => {
@@ -231,15 +231,15 @@ ipcMain.handle("start-sharing", async () => {
             conn.on('close', () => connections.delete(conn));
         });
     } catch (err) {
-        console.error("Ошибка при запуске сервера:", err);
-        return { success: false, message: "Ошибка при запуске сервера" };
+        console.error("Error starting server:", err);
+        return { success: false, message: "Error starting server" };
     }
 
     return { success: true, url: `http://${getLocalIP()}:3000/video` };
 });
 
 ipcMain.handle("stop-sharing", async () => {
-    console.log("Запрос на остановку шаринга");
+    console.log("Request to stop sharing");
 
     if (server) {
         try {
