@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { QRCodeSVG } from "qrcode.react";
 import { setVideoPath } from "./store/settingsSlice";
 import VideoPlayer from "./components/VideoPlayer";
 import SettingsPanel from "./components/SettingsPanel";
+import useMouseVisibility from "./hooks/useMouseVisibility";
+import { electronService } from './services/electronService';
+
 
 export default function App() {
     const dispatch = useDispatch();
@@ -16,42 +18,14 @@ export default function App() {
     const [showSettingsButton, setShowSettingsButton] = useState(true);
     const [playbackRate, setPlaybackRate] = useState(1);
     const [volume, setVolume] = useState(100);
-    const [currentTime, setCurrentTime] = useState(0);
-    const [duration, setDuration] = useState(0);
     const [ignoreHoverUntilLeave, setIgnoreHoverUntilLeave] = useState(false);
-
-    // NEW: flip state
     const [isFlipped, setIsFlipped] = useState(false);
 
     const videoRef = useRef(null);
-    const audioContextRef = useRef(null);
-    const gainNodeRef = useRef(null);
 
-    useEffect(() => {
-        const video = videoRef.current;
-        if (!video) return;
+    const isMouseVisible = useMouseVisibility(3000);
 
-        const handleTimeUpdate = () => {
-            setCurrentTime(video.currentTime);
-        };
-
-        const handleLoadedMetadata = () => {
-            setDuration(video.duration || 0);
-            setCurrentTime(0); // Сбрасываем время при загрузке нового видео
-        };
-
-        video.addEventListener("timeupdate", handleTimeUpdate);
-        video.addEventListener("loadedmetadata", handleLoadedMetadata);
-
-        return () => {
-            video.removeEventListener("timeupdate", handleTimeUpdate);
-            video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-        };
-    }, [videoPath]); // Зависит от videoPath, чтобы сработать при смене видео
-
-    // Автоскрытие панели
-
-    useEffect(() => {
+    React.useEffect(() => {
         let hideButtonTimer = null;
         let hidePanelTimer = null;
 
@@ -71,7 +45,6 @@ export default function App() {
                     e.clientY <= btnRect.bottom;
 
                 if (overBtn) {
-                    // Если после клика на кнопку игнорируем наведение
                     if (!ignoreHoverUntilLeave) {
                         setIsPanelOpen(true);
                     }
@@ -113,88 +86,24 @@ export default function App() {
         };
     }, [isPanelOpen, ignoreHoverUntilLeave]);
 
-    // PiP события
-    useEffect(() => {
-        const handleLeavePiP = () => window.electronAPI.restoreMainWindow();
-        const handleExitPiPFromMain = async () => {
-            if (document.pictureInPictureElement) {
-                await document.exitPictureInPicture();
-            }
-        };
-
-        if (videoRef.current) {
-            videoRef.current.addEventListener("leavepictureinpicture", handleLeavePiP);
-        }
-        window.electronAPI.onExitPiP(handleExitPiPFromMain);
-
-        return () => {
-            if (videoRef.current) {
-                videoRef.current.removeEventListener("leavepictureinpicture", handleLeavePiP);
-            }
-            window.electronAPI.removeExitPiP(handleExitPiPFromMain);
-        };
-    }, []);
-
-    // Создание AudioContext при смене видео
-    useEffect(() => {
-        if (!videoPath || !videoRef.current) return;
-
-        // Закрываем старый
-        if (audioContextRef.current) {
-            audioContextRef.current.close();
-        }
-
-        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-        gainNodeRef.current = audioContextRef.current.createGain();
-
-        const source = audioContextRef.current.createMediaElementSource(videoRef.current);
-        source.connect(gainNodeRef.current);
-        gainNodeRef.current.connect(audioContextRef.current.destination);
-        gainNodeRef.current.gain.value = volume / 100;
-
-        // Восстанавливаем скорость после смены видео
-        videoRef.current.playbackRate = playbackRate;
-
-        return () => {
-            if (audioContextRef.current) {
-                audioContextRef.current.close();
-                audioContextRef.current = null;
-                gainNodeRef.current = null;
-            }
-        };
-    }, [videoPath]);
-
     const openFile = async () => {
-        if (audioContextRef.current) {
-            try {
-                await audioContextRef.current.close();
-            } catch { /* ignore */ }
-            audioContextRef.current = null;
-            gainNodeRef.current = null;
-        }
-
-        const file = await window.electronAPI.selectVideo();
+        const file = await electronService.selectVideo();
         if (file) {
             dispatch(setVideoPath(file));
             setShareURL(null);
             setIsSharing(false);
         }
     };
-    const handleProgressChange = (e) => {
-        const newTime = (parseFloat(e.target.value) / 100) * duration;
-        if (videoRef.current) {
-            videoRef.current.currentTime = newTime;
-        }
-    };
+
     const toggleSharing = async () => {
         if (!isSharing) {
-            const result = await window.electronAPI.startSharing();
+            const result = await electronService.startSharing();
             if (result.success) {
                 setShareURL(result.url);
                 setIsSharing(true);
             }
         } else {
-            const result = await window.electronAPI.stopSharing();
+            const result = await electronService.stopSharing();
             if (result.success) {
                 setShareURL(null);
                 setIsSharing(false);
@@ -205,17 +114,11 @@ export default function App() {
     const handleSpeedChange = (e) => {
         const newRate = parseFloat(e.target.value);
         setPlaybackRate(newRate);
-        if (videoRef.current) {
-            videoRef.current.playbackRate = newRate;
-        }
     };
 
     const handleVolumeChange = (e) => {
         const newVolume = parseInt(e.target.value, 10);
         setVolume(newVolume);
-        if (gainNodeRef.current) {
-            gainNodeRef.current.gain.value = newVolume / 100;
-        }
     };
 
     const handlePiP = async () => {
@@ -223,17 +126,16 @@ export default function App() {
             if (!videoRef.current) return;
             if (document.pictureInPictureElement) {
                 await document.exitPictureInPicture();
-                window.electronAPI.restoreMainWindow();
+                electronService.restoreMainWindow();
             } else {
                 await videoRef.current.requestPictureInPicture();
-                window.electronAPI.minimizeMainWindow();
+                electronService.minimizeMainWindow();
             }
         } catch (err) {
             console.error("PiP error:", err);
         }
     };
 
-    // NEW: flip handler
     const handleFlipChange = (e) => {
         setIsFlipped(e.target.checked);
     };
@@ -245,34 +147,20 @@ export default function App() {
                 position: "relative",
                 width: "100vw",
                 height: "100vh",
-                overflow: "hidden"
+                overflow: "hidden",
+                cursor: isMouseVisible ? "default" : "none"
             }}
         >
             <VideoPlayer
-                key={videoPath} // ← пересоздаёт элемент при смене файла
+                key={videoPath}
                 videoPath={videoPath}
                 videoRef={videoRef}
-                onPlay={() => {
-                    if (audioContextRef.current?.state === "suspended") {
-                        audioContextRef.current.resume();
-                    }
-                }}
                 onOpenFile={openFile}
                 isFlipped={isFlipped}
-                currentTime={currentTime}
-                duration={duration}
-                progress={(currentTime / duration) * 100 || 0}
-                onProgressChange={handleProgressChange}
-                onVolumeChange={handleVolumeChange}
                 volume={volume}
-                isPlaying={!videoRef.current?.paused}
-                togglePlay={() =>
-                    videoRef.current?.paused
-                        ? videoRef.current.play()
-                        : videoRef.current.pause()
-                }
+                onVolumeChange={handleVolumeChange}
+                playbackRate={playbackRate}
             />
-
 
             {showSettingsButton && (
                 <button
@@ -280,13 +168,12 @@ export default function App() {
                     onClick={() => {
                         if (isPanelOpen) {
                             setIsPanelOpen(false);
-                            setIgnoreHoverUntilLeave(true); // включаем блокировку автопоказа
+                            setIgnoreHoverUntilLeave(true);
                         } else {
                             setIsPanelOpen(true);
                         }
                     }}
                     onMouseLeave={() => {
-                        // Когда мышь покинула кнопку — снова разрешаем автопоказ
                         if (ignoreHoverUntilLeave) {
                             setIgnoreHoverUntilLeave(false);
                         }
@@ -319,8 +206,8 @@ export default function App() {
                 onOpenFile={openFile}
                 onToggleSharing={toggleSharing}
                 onPiP={handlePiP}
-                isFlipped={isFlipped}           // <-- pass flip state
-                onFlipChange={handleFlipChange} // <-- pass handler
+                isFlipped={isFlipped}
+                onFlipChange={handleFlipChange}
             />
         </div>
     );

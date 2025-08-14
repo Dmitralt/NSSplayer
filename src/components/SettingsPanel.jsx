@@ -41,7 +41,7 @@ export default function SettingsPanel({
                 right: 0,
                 height: "100%",
                 width: 300,
-                backgroundColor: "rgba(34,34,34,0.6)", // полупрозрачная панель
+                backgroundColor: "rgba(34,34,34,0.6)",
                 backdropFilter: "blur(6px)",
                 color: "#fff",
                 padding: 20,
@@ -73,7 +73,6 @@ export default function SettingsPanel({
                     value={volume}
                     onChange={(e) => {
                         let val = parseInt(e.target.value, 10);
-                        // Магнит на 100 ±3
                         if (Math.abs(val - 100) <= 3) {
                             val = 100;
                         }
