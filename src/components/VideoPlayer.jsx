@@ -18,14 +18,7 @@ export default function VideoPlayer({
     const containerRef = useRef(null);
     const [showControls, setShowControls] = useState(true);
     const hideTimerRef = useRef(null);
-
-    const toggleFullscreen = () => {
-        if (!document.fullscreenElement) {
-            containerRef.current.requestFullscreen();
-        } else {
-            document.exitFullscreen();
-        }
-    };
+    const seekIntervalRef = useRef(null);
 
     const formatTime = (time) => {
         if (!isFinite(time)) return "00:00";
@@ -34,25 +27,85 @@ export default function VideoPlayer({
         return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
     };
 
-    // Автоскрытие панели при бездействии
+    // Автоскрытие панели
     useEffect(() => {
         const resetHideTimer = () => {
             setShowControls(true);
             if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-            hideTimerRef.current = setTimeout(() => setShowControls(false), 3000);
+            hideTimerRef.current = setTimeout(() => setShowControls(false), 2000);
         };
 
         window.addEventListener("mousemove", resetHideTimer);
         window.addEventListener("keydown", resetHideTimer);
 
-        resetHideTimer(); // показать при монтировании
-
+        resetHideTimer();
         return () => {
             window.removeEventListener("mousemove", resetHideTimer);
             window.removeEventListener("keydown", resetHideTimer);
             if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
         };
     }, []);
+
+    // Горячие клавиши
+    useEffect(() => {
+        const vid = videoRef.current;
+        if (!vid) return;
+
+        const handleKeyDown = (e) => {
+            if (e.code === "Space") {
+                e.preventDefault();
+                togglePlay();
+            }
+            if (e.code === "ArrowRight") {
+                e.preventDefault();
+                // быстрый прыжок
+                vid.currentTime = Math.min(vid.duration, vid.currentTime + 10);
+
+                // если зажали — запускаем интервал перемотки
+                if (!seekIntervalRef.current) {
+                    seekIntervalRef.current = setInterval(() => {
+                        vid.currentTime = Math.min(vid.duration, vid.currentTime + 2);
+                    }, 100);
+                }
+            }
+            if (e.code === "ArrowLeft") {
+                e.preventDefault();
+                vid.currentTime = Math.max(0, vid.currentTime - 10);
+                if (!seekIntervalRef.current) {
+                    seekIntervalRef.current = setInterval(() => {
+                        vid.currentTime = Math.max(0, vid.currentTime - 2);
+                    }, 100);
+                }
+            }
+            if (e.code === "ArrowUp") {
+                e.preventDefault();
+                const newVol = Math.min(100, volume + 5);
+                onVolumeChange({ target: { value: newVol } });
+            }
+            if (e.code === "ArrowDown") {
+                e.preventDefault();
+                const newVol = Math.max(0, volume - 5);
+                onVolumeChange({ target: { value: newVol } });
+            }
+        };
+
+        const handleKeyUp = (e) => {
+            if (e.code === "ArrowRight" || e.code === "ArrowLeft") {
+                if (seekIntervalRef.current) {
+                    clearInterval(seekIntervalRef.current);
+                    seekIntervalRef.current = null;
+                }
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("keyup", handleKeyUp);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener("keyup", handleKeyUp);
+            if (seekIntervalRef.current) clearInterval(seekIntervalRef.current);
+        };
+    }, [videoRef, togglePlay, volume, onVolumeChange]);
 
     if (!videoPath) {
         return (
@@ -69,7 +122,7 @@ export default function VideoPlayer({
                     color: "#000",
                     flexDirection: "column",
                     gap: "1rem",
-                    backgroundColor: "#ffffffff"
+                    backgroundColor: "#fff"
                 }}
             >
                 <span>Select video...</span>
@@ -85,11 +138,10 @@ export default function VideoPlayer({
                 position: "relative",
                 width: "100%",
                 height: "100%",
-                backgroundColor: "#fff", // светлый фон при старте
+                backgroundColor: "#fff",
                 overflow: "hidden"
             }}
         >
-            {/* Видео */}
             <video
                 ref={videoRef}
                 src={`file://${videoPath}`}
@@ -100,7 +152,7 @@ export default function VideoPlayer({
                     objectFit: "contain",
                     transform: isFlipped ? "scaleX(-1)" : "none",
                     transformOrigin: "center",
-                    backgroundColor: "#000" // при воспроизведении чёрный фон вокруг видео
+                    backgroundColor: "#000"
                 }}
                 onPlay={() => onPlay?.()}
             />
@@ -113,17 +165,13 @@ export default function VideoPlayer({
                     left: 0,
                     width: "100%",
                     padding: "10px",
-                    background: "rgba(0,0,0,0.0)", // полупрозрачный тёмный фон
                     display: showControls ? "flex" : "none",
                     flexDirection: "column",
                     gap: "6px",
-                    boxSizing: "border-box",
                     zIndex: 1000,
-                    //backdropFilter: "blur(6px)", // лёгкий блюр для читаемости
                     transition: "opacity 0.3s ease"
                 }}
             >
-                {/* Прогресс */}
                 <input
                     type="range"
                     min="0"
@@ -138,15 +186,7 @@ export default function VideoPlayer({
                     }}
                 />
 
-                {/* Кнопки */}
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "12px",
-                        color: "#fff"
-                    }}
-                >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", color: "#fff" }}>
                     <button
                         onClick={togglePlay}
                         style={{
@@ -194,6 +234,4 @@ export default function VideoPlayer({
             </div>
         </div>
     );
-
-
 }
