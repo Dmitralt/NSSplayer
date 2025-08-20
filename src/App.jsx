@@ -88,11 +88,19 @@ export default function App() {
 
     const openFile = async () => {
         const file = await electronService.selectVideo();
-        if (file) {
-            dispatch(setVideoPath(file));
-            setShareURL(null);
-            setIsSharing(false);
+        if (!file) return;
+
+        const vid = videoRef.current;
+        if (vid) {
+            vid.pause();
+
+            vid.removeAttribute("src");
+            vid.load();
         }
+
+        dispatch(setVideoPath(file));
+        setShareURL(null);
+        setIsSharing(false);
     };
 
     const toggleSharing = async () => {

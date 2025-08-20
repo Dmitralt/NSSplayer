@@ -186,10 +186,15 @@ export default function VideoPlayer({
                 ref={videoRef}
                 src={`file://${videoPath}`}
                 autoPlay
+                onClick={togglePlay}
                 style={{
-                    width: "100%", height: "100%", objectFit: "contain",
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
                     transform: isFlipped ? "scaleX(-1)" : "none",
-                    transformOrigin: "center", backgroundColor: "#000"
+                    transformOrigin: "center",
+                    backgroundColor: "#000",
+                    cursor: "inherit"
                 }}
             />
 
