@@ -182,28 +182,57 @@ export default function VideoPlayer({
             position: "relative", width: "100%", height: "100%",
             backgroundColor: "#fff", overflow: "hidden"
         }}>
-            <video
-                ref={videoRef}
-                src={`file://${videoPath}`}
-                autoPlay
-                onClick={togglePlay}
-                style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    transform: isFlipped ? "scaleX(-1)" : "none",
-                    transformOrigin: "center",
-                    backgroundColor: "#000",
-                    cursor: "inherit"
-                }}
-            />
+            <div style={{ position: "relative", width: "100%", height: "100%" }}>
+                <video
+                    ref={videoRef}
+                    src={`file://${videoPath}`}
+                    autoPlay
 
-            <div style={{
-                position: "absolute", bottom: 0, left: 0, width: "100%",
-                padding: "10px", display: showControls ? "flex" : "none",
-                flexDirection: "column", gap: "6px", zIndex: 1000,
-                transition: "opacity 0.3s ease"
-            }}>
+                    style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                        transform: isFlipped ? "scaleX(-1)" : "none",
+                        transformOrigin: "center",
+                        backgroundColor: "#000",
+                        cursor: "inherit"
+                    }}
+                />
+
+                <div
+                    onClick={togglePlay}
+                    style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
+                        pointerEvents: "auto", // или "none", если не нужно перехватывать клики
+                        backgroundColor: "transparent",
+                        zIndex: 10
+                    }}
+                >
+                    {/* Тут можно разместить любые элементы: кнопки, тултипы, overlay UI */}
+                </div>
+            </div>
+
+
+            <div
+                style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    width: "100%",
+                    padding: "10px",
+                    display: "flex", // всегда flex
+                    flexDirection: "column",
+                    gap: "6px",
+                    zIndex: 1000,
+                    opacity: showControls ? 1 : 0,
+                    transition: "opacity 0.3s ease, visibility 0.3s ease"
+                }}
+            >
+
                 <input
                     type="range"
                     min="0"
