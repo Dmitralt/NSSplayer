@@ -2,7 +2,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
     selectVideo: () => ipcRenderer.invoke("select-video"),
-    selectSubtitle: () => ipcRenderer.invoke("select-subtitle"), // <--- добавлено
+    selectSubtitle: () => ipcRenderer.invoke("select-subtitle"),
     startSharing: () => ipcRenderer.invoke("start-sharing"),
     stopSharing: () => ipcRenderer.invoke("stop-sharing"),
     minimizeMainWindow: () => ipcRenderer.send("minimize-main-window"),

@@ -14,8 +14,8 @@ export default function SettingsPanel({
     onPiP,
     isFlipped,
     onFlipChange,
-    subtitleEnabled,       // <--- добавлено
-    setSubtitleEnabled,     // <--- добавлено
+    subtitleEnabled,
+    setSubtitleEnabled,
     onSelectSubtitle
 }) {
     const btnStyle = {
@@ -34,7 +34,6 @@ export default function SettingsPanel({
         border: "1px solid rgba(255,255,255,0.5)",
         boxShadow: "0 2px 6px rgba(0,0,0,0.3)"
     };
-
     return (
         <div
             id="settings-panel"
@@ -90,13 +89,7 @@ export default function SettingsPanel({
                         cursor: "pointer"
                     }}
                 />
-                <label style={{ color: '#fff' }}>
-                    <input
-                        type="checkbox"
-                        checked={subtitleEnabled}
-                        onChange={e => setSubtitleEnabled(e.target.checked)}
-                    /> Subtitles
-                </label>
+
 
             </div>
 
@@ -118,12 +111,7 @@ export default function SettingsPanel({
                 {isSharing ? "Stop Sharing" : "Start Sharing"}
             </button>
 
-            <button
-                style={btnStyle}
-                onClick={onSelectSubtitle}
-            >
-                Select Subtitles
-            </button>
+
 
             {shareURL && (
                 <div
@@ -200,6 +188,26 @@ export default function SettingsPanel({
             >
                 Toggle Fullscreen
             </button>
+            <button
+                style={btnStyle}
+                onClick={onSelectSubtitle}
+            >
+                Select Subtitles
+            </button>
+            <div>
+                <label style={{ cursor: "pointer" }}>
+                    <input
+                        type="checkbox"
+                        checked={subtitleEnabled}
+                        onChange={e => setSubtitleEnabled(e.target.checked)}
+                        style={{
+                            marginRight: 6,
+                            accentColor: "#fff"
+                        }}
+                    />
+                    Subtitles
+                </label>
+            </div>
         </div>
     );
 }

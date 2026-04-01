@@ -64,31 +64,43 @@ export default function VideoPlayer({
             vid.removeEventListener("pause", onPauseEvt);
         };
     }, [videoPath, videoRef]);
+
+
     useEffect(() => {
-        if (!subtitleEnabled) return;
         const vid = videoRef.current;
         if (!vid) return;
+
+        if (!subtitleEnabled) {
+            if (subtitleDivRef.current) subtitleDivRef.current.innerHTML = '';
+            const tracks = vid.textTracks;
+            if (tracks) {
+                for (let i = 0; i < tracks.length; i++) {
+                    tracks[i].mode = "disabled";
+                }
+            }
+            return;
+        }
 
         const tracks = vid.textTracks;
         if (!tracks || !tracks[0]) return;
 
         const track = tracks[0];
-        track.mode = "hidden"; // скрываем встроенные субтитры
+        track.mode = "hidden";
 
         track.oncuechange = () => {
             const cue = track.activeCues[0];
             if (cue) {
-                // Убираем все HTML-теги и лишние пробелы
                 const cleanText = cue.text
-                    .replace(/<\/?[^>]+(>|$)/g, "") // удаляет HTML
+                    .replace(/<\/?[^>]+(>|$)/g, "")
                     .trim();
-
                 subtitleDivRef.current.innerHTML = cleanText.replace(/\n/g, "<br>");
             } else {
                 subtitleDivRef.current.innerHTML = '';
             }
         };
     }, [videoRef, subtitlePath, subtitleEnabled]);
+
+
     useEffect(() => {
         const vid = videoRef.current;
         if (!vid) return;
@@ -233,11 +245,18 @@ export default function VideoPlayer({
                         transform: "translateX(-50%)",
                         textAlign: "center",
                         color: "white",
-                        fontSize: "36px",
-                        textShadow: "0 0 8px black",
+                        fontSize: "42px",
                         pointerEvents: "none",
                         zIndex: 999,
                         whiteSpace: "pre-wrap",
+
+                        textShadow: `
+            -2px -2px 0 #000,
+             2px -2px 0 #000,
+            -2px  2px 0 #000,
+             2px  2px 0 #000,
+             0px  0px 6px #000
+        `
                     }}
                 ></div>
 

@@ -23,7 +23,7 @@ export default function App() {
     const [videoKey, setVideoKey] = useState(0);
     const videoRef = useRef(null);
     const [subtitlePath, setSubtitlePath] = useState(null);
-    const [subtitleEnabled, setSubtitleEnabled] = useState(true);
+    const [subtitleEnabled, setSubtitleEnabled] = useState(false);
 
     const isMouseVisible = useMouseVisibility(3000);
 
@@ -236,8 +236,8 @@ export default function App() {
                 onPiP={handlePiP}
                 isFlipped={isFlipped}
                 onFlipChange={handleFlipChange}
-                subtitleEnabled={subtitleEnabled}       // <--- добавлено
-                setSubtitleEnabled={setSubtitleEnabled} // <--- добавлено
+                subtitleEnabled={subtitleEnabled}
+                setSubtitleEnabled={setSubtitleEnabled}
                 onSelectSubtitle={openSubtitleFile}
             />
         </div>
