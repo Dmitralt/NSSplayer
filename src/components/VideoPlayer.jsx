@@ -3,7 +3,6 @@ import { electronService } from "../services/electronService";
 import { useAutoHideControls } from "../hooks/useAutoHideControls";
 import { useWebAudio } from "../hooks/useWebAudio";
 
-
 export default function VideoPlayer({
     videoPath,
     videoRef,
@@ -11,12 +10,14 @@ export default function VideoPlayer({
     isFlipped,
     volume,
     onVolumeChange,
-    playbackRate
+    playbackRate,
+    subtitleEnabled,
+    subtitlePath
 }) {
     const containerRef = useRef(null);
     const hideTimerRef = useRef(null);
     const seekIntervalRef = useRef(null);
-
+    const subtitleDivRef = useRef(null);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -28,11 +29,9 @@ export default function VideoPlayer({
         return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
     };
 
-
     const { audioContextRef, gainNodeRef } = useWebAudio(videoRef, videoPath, volume, playbackRate);
     const { showControls } = useAutoHideControls(2000);
 
-    // timeupdate / metadata / play / pause
     useEffect(() => {
         const vid = videoRef.current;
         if (!vid) return;
@@ -44,7 +43,7 @@ export default function VideoPlayer({
         };
         const onPlayEvt = async () => {
             if (audioContextRef.current?.state === "suspended") {
-                try { await audioContextRef.current.resume(); } catch (e) { /* ignore */ }
+                try { await audioContextRef.current.resume(); } catch { }
             }
             setIsPlaying(true);
         };
@@ -55,9 +54,7 @@ export default function VideoPlayer({
         vid.addEventListener("play", onPlayEvt);
         vid.addEventListener("pause", onPauseEvt);
 
-        if (isFinite(vid.duration)) {
-            setDuration(vid.duration || 0);
-        }
+        if (isFinite(vid.duration)) setDuration(vid.duration || 0);
         setIsPlaying(!vid.paused);
 
         return () => {
@@ -67,8 +64,31 @@ export default function VideoPlayer({
             vid.removeEventListener("pause", onPauseEvt);
         };
     }, [videoPath, videoRef]);
+    useEffect(() => {
+        if (!subtitleEnabled) return;
+        const vid = videoRef.current;
+        if (!vid) return;
 
-    // keyboard
+        const tracks = vid.textTracks;
+        if (!tracks || !tracks[0]) return;
+
+        const track = tracks[0];
+        track.mode = "hidden"; // скрываем встроенные субтитры
+
+        track.oncuechange = () => {
+            const cue = track.activeCues[0];
+            if (cue) {
+                // Убираем все HTML-теги и лишние пробелы
+                const cleanText = cue.text
+                    .replace(/<\/?[^>]+(>|$)/g, "") // удаляет HTML
+                    .trim();
+
+                subtitleDivRef.current.innerHTML = cleanText.replace(/\n/g, "<br>");
+            } else {
+                subtitleDivRef.current.innerHTML = '';
+            }
+        };
+    }, [videoRef, subtitlePath, subtitleEnabled]);
     useEffect(() => {
         const vid = videoRef.current;
         if (!vid) return;
@@ -124,7 +144,6 @@ export default function VideoPlayer({
         };
     }, [videoRef, volume, onVolumeChange]);
 
-    // PiP и electronService
     useEffect(() => {
         const vid = videoRef.current;
         if (!vid) return;
@@ -132,7 +151,7 @@ export default function VideoPlayer({
         const handleLeavePiP = () => electronService.restoreMainWindow();
         const handleExitPiPFromMain = async () => {
             if (document.pictureInPictureElement) {
-                try { await document.exitPictureInPicture(); } catch (e) { /* ignore */ }
+                try { await document.exitPictureInPicture(); } catch { }
             }
         };
 
@@ -157,9 +176,7 @@ export default function VideoPlayer({
 
     const handleProgressChange = (e) => {
         const newTime = (parseFloat(e.target.value) / 100) * (duration || 0);
-        if (videoRef.current) {
-            videoRef.current.currentTime = newTime;
-        }
+        if (videoRef.current) videoRef.current.currentTime = newTime;
     };
 
     if (!videoPath) {
@@ -187,17 +204,44 @@ export default function VideoPlayer({
                     ref={videoRef}
                     src={`file://${videoPath}`}
                     autoPlay
-
                     style={{
                         width: "100%",
                         height: "100%",
                         objectFit: "contain",
                         transform: isFlipped ? "scaleX(-1)" : "none",
-                        transformOrigin: "center",
                         backgroundColor: "#000",
                         cursor: "inherit"
                     }}
-                />
+                >
+                    {subtitlePath && subtitleEnabled && (
+                        <track
+                            src={`file://${subtitlePath}`}
+                            kind="subtitles"
+                            srcLang="en"
+                            label="English"
+                            default
+                        />
+                    )}
+
+                </video>
+                <div
+                    ref={subtitleDivRef}
+                    style={{
+                        position: "absolute",
+                        bottom: "10%",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        textAlign: "center",
+                        color: "white",
+                        fontSize: "36px",
+                        textShadow: "0 0 8px black",
+                        pointerEvents: "none",
+                        zIndex: 999,
+                        whiteSpace: "pre-wrap",
+                    }}
+                ></div>
+
+
 
                 <div
                     onClick={togglePlay}
@@ -207,15 +251,13 @@ export default function VideoPlayer({
                         left: 0,
                         width: "100%",
                         height: "100%",
-                        pointerEvents: "auto", // или "none", если не нужно перехватывать клики
+                        pointerEvents: "auto",
                         backgroundColor: "transparent",
                         zIndex: 10
                     }}
                 >
-                    {/* Тут можно разместить любые элементы: кнопки, тултипы, overlay UI */}
                 </div>
             </div>
-
 
             <div
                 style={{
@@ -224,7 +266,7 @@ export default function VideoPlayer({
                     left: 0,
                     width: "100%",
                     padding: "10px",
-                    display: "flex", // всегда flex
+                    display: "flex",
                     flexDirection: "column",
                     gap: "6px",
                     zIndex: 1000,

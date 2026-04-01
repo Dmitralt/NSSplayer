@@ -7,4 +7,5 @@ export const electronService = {
     restoreMainWindow: () => window.electronAPI.restoreMainWindow(),
     minimizeSecondWindow: () => window.electronAPI.minimizeSecondWindow(),
     restoreSecondWindow: () => window.electronAPI.restoreSecondWindow(),
+    selectSubtitle: () => window.electronAPI.selectSubtitle()
 };

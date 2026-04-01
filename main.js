@@ -133,6 +133,15 @@ ipcMain.handle("toggle-fullscreen", () => {
         win.setFullScreen(!win.isFullScreen());
     }
 });
+
+ipcMain.handle("select-subtitle", async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+        filters: [{ name: "Subtitles", extensions: ["vtt", "srt"] }],
+        properties: ["openFile"],
+    });
+    if (canceled) return null;
+    return filePaths[0];
+});
 // =====================================
 
 ipcMain.handle("select-video", async () => {

@@ -13,7 +13,10 @@ export default function SettingsPanel({
     onToggleSharing,
     onPiP,
     isFlipped,
-    onFlipChange
+    onFlipChange,
+    subtitleEnabled,       // <--- добавлено
+    setSubtitleEnabled,     // <--- добавлено
+    onSelectSubtitle
 }) {
     const btnStyle = {
         background: "rgba(255,255,255,0.1)",
@@ -87,6 +90,13 @@ export default function SettingsPanel({
                         cursor: "pointer"
                     }}
                 />
+                <label style={{ color: '#fff' }}>
+                    <input
+                        type="checkbox"
+                        checked={subtitleEnabled}
+                        onChange={e => setSubtitleEnabled(e.target.checked)}
+                    /> Subtitles
+                </label>
 
             </div>
 
@@ -106,6 +116,13 @@ export default function SettingsPanel({
                 onClick={onToggleSharing}
             >
                 {isSharing ? "Stop Sharing" : "Start Sharing"}
+            </button>
+
+            <button
+                style={btnStyle}
+                onClick={onSelectSubtitle}
+            >
+                Select Subtitles
             </button>
 
             {shareURL && (

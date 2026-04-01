@@ -22,6 +22,8 @@ export default function App() {
     const [isFlipped, setIsFlipped] = useState(false);
     const [videoKey, setVideoKey] = useState(0);
     const videoRef = useRef(null);
+    const [subtitlePath, setSubtitlePath] = useState(null);
+    const [subtitleEnabled, setSubtitleEnabled] = useState(true);
 
     const isMouseVisible = useMouseVisibility(3000);
 
@@ -95,12 +97,11 @@ export default function App() {
         const vid = videoRef.current;
 
         if (file === videoPath) {
-            // перезапуск того же видео
             if (vid) {
                 vid.currentTime = 0;
                 vid.pause();
                 vid.load();
-                vid.play().catch(() => { }); // на случай autoPlay блокировки
+                vid.play().catch(() => { });
             }
             setVideoKey(prev => prev + 1);
         } else {
@@ -112,6 +113,12 @@ export default function App() {
             dispatch(setVideoPath(file));
             setVideoKey(prev => prev + 1);
         }
+    };
+
+    const openSubtitleFile = async () => {
+        const file = await electronService.selectSubtitle();
+        if (!file) return;
+        setSubtitlePath(file);
     };
 
     const toggleSharing = async () => {
@@ -179,6 +186,8 @@ export default function App() {
                 volume={volume}
                 onVolumeChange={handleVolumeChange}
                 playbackRate={playbackRate}
+                subtitleEnabled={subtitleEnabled}
+                subtitlePath={subtitlePath}
             />
 
             {showSettingsButton && (
@@ -227,6 +236,9 @@ export default function App() {
                 onPiP={handlePiP}
                 isFlipped={isFlipped}
                 onFlipChange={handleFlipChange}
+                subtitleEnabled={subtitleEnabled}       // <--- добавлено
+                setSubtitleEnabled={setSubtitleEnabled} // <--- добавлено
+                onSelectSubtitle={openSubtitleFile}
             />
         </div>
     );
