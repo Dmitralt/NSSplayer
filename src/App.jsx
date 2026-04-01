@@ -20,7 +20,7 @@ export default function App() {
     const [volume, setVolume] = useState(100);
     const [ignoreHoverUntilLeave, setIgnoreHoverUntilLeave] = useState(false);
     const [isFlipped, setIsFlipped] = useState(false);
-
+    const [videoKey, setVideoKey] = useState(0);
     const videoRef = useRef(null);
 
     const isMouseVisible = useMouseVisibility(3000);
@@ -86,21 +86,32 @@ export default function App() {
         };
     }, [isPanelOpen, ignoreHoverUntilLeave]);
 
+
+
     const openFile = async () => {
         const file = await electronService.selectVideo();
         if (!file) return;
 
         const vid = videoRef.current;
-        if (vid) {
-            vid.pause();
 
-            vid.removeAttribute("src");
-            vid.load();
+        if (file === videoPath) {
+            // перезапуск того же видео
+            if (vid) {
+                vid.currentTime = 0;
+                vid.pause();
+                vid.load();
+                vid.play().catch(() => { }); // на случай autoPlay блокировки
+            }
+            setVideoKey(prev => prev + 1);
+        } else {
+            if (vid) {
+                vid.pause();
+                vid.removeAttribute("src");
+                vid.load();
+            }
+            dispatch(setVideoPath(file));
+            setVideoKey(prev => prev + 1);
         }
-
-        dispatch(setVideoPath(file));
-        setShareURL(null);
-        setIsSharing(false);
     };
 
     const toggleSharing = async () => {

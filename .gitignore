@@ -8,6 +8,10 @@ package-lock.json
 # VSCode
 .vscode/
 
+# JetBrains IDE
+.idea/
+*.iml
+
 # Electron build output
 dist/
 out/
